@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  oracle-db:
+    image: gvenzl/oracle-xe
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: 1234
+      APP_USER: TicketManagmentSystem
+      APP_USER_PASSWORD: 1234
+    networks:
+      - my-network
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "8081:8080"
+    depends_on:
+      - oracle-db
+    volumes:
+      - ./jwt_secret.key:/run/secrets/jwt_secret.key:ro
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@oracle-db:1521/XEPDB1
+      SPRING_DATASOURCE_USERNAME: TicketManagmentSystem
+      SPRING_DATASOURCE_PASSWORD: 1234
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+    networks:
+      - my-network
+
+  ticket-service:
+    build: ./ticket-service
+    ports:
+      - "8082:8080"
+    depends_on:
+      - oracle-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@oracle-db:1521/XEPDB1
+      SPRING_DATASOURCE_USERNAME: TicketManagmentSystem
+      SPRING_DATASOURCE_PASSWORD: 1234
+    networks:
+      - my-network
+
+  api-gateway:
+      build: ./api-gateway
+      ports:
+        - "8080:8080"
+      environment:
+        JWT_SECRET_BASE64: ${JWT_SECRET_BASE64}
+      depends_on:
+        - user-service
+        - ticket-service
+      networks:
+        - my-network
+
+networks:
+  my-network:
